@@ -1,100 +1,108 @@
-// Array to store the checkbox and message elements
-let checkboxes = [];
-let messages = [];
+class ChatMessage {
+  constructor(checkbox, message) {
+    this.checkbox = checkbox;
+    this.message = message;
+  }
+}
 
-// Maximum number of elements allowed in the arrays
 const MAX_ELEMENTS = 90;
+const chatMessages = new Map();
 
-// Function to add a checkbox to a chat message
 function addCheckboxToMessage(message) {
-  // Check if the message has a sub element with id="author-photo"
-  if (message.querySelector("#author-photo")) {
-    // Create a new checkbox
+  const authorPhoto = message.querySelector("#author-photo");
+  const messageId = message.getAttribute("id");
+
+  if (authorPhoto && messageId && !chatMessages.has(messageId)) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-
-    // Insert the checkbox at the beginning of the chat message
     message.insertBefore(checkbox, message.firstChild);
 
-    // Get the index of the message
-    let index = Array.prototype.indexOf.call(chatContainer.children, message);
+    const chatMessage = new ChatMessage(checkbox, message);
+    chatMessages.set(messageId, chatMessage);
 
-    // Add checkbox and message to their arrays
-    checkboxes.splice(index, 0, checkbox);
-    messages.splice(index, 0, message);
-
-    checkbox.addEventListener("click", function (event) {
+    checkbox.addEventListener("click", (event) => {
       event.stopPropagation();
     });
 
-    checkbox.addEventListener("change", function (event) {
+    checkbox.addEventListener("change", (event) => {
       event.stopPropagation();
-
-      // Get the index of the clicked checkbox
-      let clickedIndex = checkboxes.indexOf(checkbox);
-
-      // Grey out or un-grey the clicked checkbox
-      grayOutChatMessage(checkbox.parentNode, checkbox.checked);
-
-      // Select all previous checkboxes if checkbox is checked
-      if (checkbox.checked) {
-        for (let i = clickedIndex - 1; i >= 0; i--) {
-          checkboxes[i].checked = true;
-          grayOutChatMessage(checkboxes[i].parentNode, true);
-        }
-      }
-      // Uncheck all following checkboxes if checkbox is unchecked
-      else {
-        for (let i = clickedIndex + 1; i < checkboxes.length; i++) {
-          checkboxes[i].checked = false;
-          grayOutChatMessage(checkboxes[i].parentNode, false);
-        }
-      }
+      handleCheckboxChange(checkbox);
     });
 
-    // Check if arrays have reached maximum capacity
-    if (checkboxes.length > MAX_ELEMENTS) {
-      // Remove the oldest checkbox and its corresponding message
-      const oldestCheckbox = checkboxes.shift();
-      const oldestMessage = messages.shift();
-
-      // Remove the oldest checkbox from the DOM
-      oldestCheckbox.remove();
-      oldestMessage.remove();
+    if (chatMessages.size > MAX_ELEMENTS) {
+      removeOldestMessage();
     }
   }
 }
 
-// Function to gray out or un-gray a chat message
+function handleCheckboxChange(clickedCheckbox) {
+  const clickedMessage = chatMessages.get(clickedCheckbox.parentNode.getAttribute("id"));
+
+  if (!clickedMessage) {
+    return;
+  }
+
+  const clickedIndex = Array.from(chatMessages.values()).indexOf(clickedMessage);
+
+  for (const [index, message] of chatMessages.entries()) {
+    if (index < clickedIndex) {
+      message.checkbox.checked = true;
+      grayOutChatMessage(message.message, true);
+    } else {
+      message.checkbox.checked = false;
+      grayOutChatMessage(message.message, false);
+    }
+  }
+}
+
+function removeOldestMessage() {
+  const oldestMessageId = chatMessages.keys().next().value;
+
+  if (oldestMessageId) {
+    const oldestMessage = chatMessages.get(oldestMessageId);
+    oldestMessage.checkbox.remove();
+    oldestMessage.message.remove();
+    chatMessages.delete(oldestMessageId);
+  }
+}
+
 function grayOutChatMessage(message, gray) {
   const chatTextElement = message.querySelector("#message");
+
   if (chatTextElement) {
     chatTextElement.style.color = gray ? "grey" : "";
     chatTextElement.style.textDecoration = gray ? "line-through" : "";
   }
 }
 
-// Select the chat container
-const chatContainer = document.querySelector(
-  "#items.style-scope.yt-live-chat-item-list-renderer"
-);
+const chatContainer = document.querySelector("#items.style-scope.yt-live-chat-item-list-renderer");
 
-// Add checkboxes to all existing chat messages
-for (let message of chatContainer.children) {
+for (const message of chatContainer.children) {
   addCheckboxToMessage(message);
 }
 
-// Set up the MutationObserver to add checkboxes to new chat messages
 const observer = new MutationObserver((mutationsList) => {
-  for (let mutation of mutationsList) {
-    if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-      for (let node of mutation.addedNodes) {
+  for (const mutation of mutationsList) {
+    if (mutation.type === "childList") {
+      mutation.addedNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           addCheckboxToMessage(node);
         }
-      }
+      });
+
+      mutation.removedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const removedMessageId = node.getAttribute("id");
+          if (removedMessageId && chatMessages.has(removedMessageId)) {
+            const removedMessage = chatMessages.get(removedMessageId);
+            removedMessage.checkbox.remove();
+            removedMessage.message.remove();
+            chatMessages.delete(removedMessageId);
+          }
+        }
+      });
     }
   }
 });
 
-observer.observe(chatContainer, { childList: true });
+observer.observe(chatContainer, { childList: true, subtree: true });
