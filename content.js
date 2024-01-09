@@ -1,24 +1,17 @@
-class ChatMessage {
-  constructor(checkbox, message) {
-    this.checkbox = checkbox;
-    this.message = message;
-  }
-}
-
 const MAX_ELEMENTS = 90;
-const chatMessages = new Map();
+const checkboxes = [];
+const messages = [];
 
 function addCheckboxToMessage(message) {
   const authorPhoto = message.querySelector("#author-photo");
-  const messageId = message.getAttribute("id");
 
-  if (authorPhoto && messageId && !chatMessages.has(messageId)) {
+  if (authorPhoto && !message.hasAttribute("data-checkbox-added")) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     message.insertBefore(checkbox, message.firstChild);
 
-    const chatMessage = new ChatMessage(checkbox, message);
-    chatMessages.set(messageId, chatMessage);
+    checkboxes.push(checkbox);
+    messages.push(message);
 
     checkbox.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -29,40 +22,30 @@ function addCheckboxToMessage(message) {
       handleCheckboxChange(checkbox);
     });
 
-    if (chatMessages.size > MAX_ELEMENTS) {
+    message.setAttribute("data-checkbox-added", "true");
+
+    if (checkboxes.length > MAX_ELEMENTS) {
       removeOldestMessage();
     }
   }
 }
 
 function handleCheckboxChange(clickedCheckbox) {
-  const clickedMessage = chatMessages.get(clickedCheckbox.parentNode.getAttribute("id"));
+  const clickedIndex = checkboxes.indexOf(clickedCheckbox);
 
-  if (!clickedMessage) {
-    return;
-  }
-
-  const clickedIndex = Array.from(chatMessages.values()).indexOf(clickedMessage);
-
-  for (const [index, message] of chatMessages.entries()) {
-    if (index < clickedIndex) {
-      message.checkbox.checked = true;
-      grayOutChatMessage(message.message, true);
-    } else {
-      message.checkbox.checked = false;
-      grayOutChatMessage(message.message, false);
-    }
+  for (let i = 0; i < checkboxes.length; i++) {
+    checkboxes[i].checked = i <= clickedIndex;
+    grayOutChatMessage(messages[i], i > clickedIndex);
   }
 }
 
 function removeOldestMessage() {
-  const oldestMessageId = chatMessages.keys().next().value;
+  const oldestCheckbox = checkboxes.shift();
+  const oldestMessage = messages.shift();
 
-  if (oldestMessageId) {
-    const oldestMessage = chatMessages.get(oldestMessageId);
-    oldestMessage.checkbox.remove();
-    oldestMessage.message.remove();
-    chatMessages.delete(oldestMessageId);
+  if (oldestCheckbox && oldestMessage) {
+    oldestCheckbox.remove();
+    oldestMessage.remove();
   }
 }
 
@@ -92,12 +75,10 @@ const observer = new MutationObserver((mutationsList) => {
 
       mutation.removedNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
-          const removedMessageId = node.getAttribute("id");
-          if (removedMessageId && chatMessages.has(removedMessageId)) {
-            const removedMessage = chatMessages.get(removedMessageId);
-            removedMessage.checkbox.remove();
-            removedMessage.message.remove();
-            chatMessages.delete(removedMessageId);
+          const removedIndex = messages.indexOf(node);
+          if (removedIndex !== -1) {
+            checkboxes.splice(removedIndex, 1);
+            messages.splice(removedIndex, 1);
           }
         }
       });
@@ -105,4 +86,4 @@ const observer = new MutationObserver((mutationsList) => {
   }
 });
 
-observer.observe(chatContainer, { childList: true, subtree: true });
+observer.observe(chatContainer, { childList: true });
