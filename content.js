@@ -53,8 +53,8 @@ function grayOutChatMessage(message, gray) {
   const chatTextElement = message.querySelector("#message");
 
   if (chatTextElement) {
-    chatTextElement.style.color = gray ? "grey" : "";
-    chatTextElement.style.textDecoration = gray ? "line-through" : "";
+    chatTextElement.style.color = gray ? "" : "grey";  // Invert the logic here
+    chatTextElement.style.textDecoration = gray ? "" : "line-through";  // Invert the logic here
   }
 }
 
