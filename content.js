@@ -1,11 +1,16 @@
 const MAX_ELEMENTS = 90;
-const checkboxes = new Map(); // Use a Map for efficient lookups
+const checkboxes = new Map();
 const messages = [];
 
 function addCheckboxToMessage(message) {
-  const messageId = message.id;
+  const authorPhoto = message.querySelector("#author-photo");
 
-  if (messageId && !checkboxes.has(messageId)) {
+  // Check if the element is a chat message (modify based on your actual HTML structure)
+  const isChatMessage = message.classList.contains("chat-message-class");
+
+  if (authorPhoto && isChatMessage && !message.hasAttribute("data-checkbox-added")) {
+    const messageId = message.id;
+
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     message.insertBefore(checkbox, message.firstChild);
@@ -22,8 +27,17 @@ function addCheckboxToMessage(message) {
       handleCheckboxChange(checkbox);
     });
 
+    message.setAttribute("data-checkbox-added", "true");
+
     if (checkboxes.size > MAX_ELEMENTS) {
       removeOldestMessage();
+    }
+
+    // Check if the message is a system message (modify based on your actual HTML structure)
+    const isSystemMessage = message.classList.contains("system-message-class");
+
+    if (isSystemMessage) {
+      handleSystemMessage(message); // Implement this function to handle system messages
     }
   }
 }
@@ -56,6 +70,11 @@ function grayOutChatMessage(message, gray) {
     chatTextElement.style.color = gray ? "" : "grey";
     chatTextElement.style.textDecoration = gray ? "" : "line-through";
   }
+}
+
+function handleSystemMessage(systemMessage) {
+  // Implement logic to handle system messages (e.g., reflect timeouts)
+  // You can update checkbox states or take other actions as needed
 }
 
 const chatContainer = document.querySelector("#items.style-scope.yt-live-chat-item-list-renderer");
