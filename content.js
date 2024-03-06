@@ -85,9 +85,11 @@ const observer = new MutationObserver((mutationsList) => {
         }
       });
     } else if (mutation.type === "characterData") {
-      // Handle changes to the content of the messages (e.g., deleted messages)
+      const mutatedMessage = mutation.target.parentElement;
+      const mutatedCheckbox = checkboxes.get(mutatedMessage.id);
+      handleCheckboxChange(mutatedCheckbox);
     }
   }
 });
 
-observer.observe(chatContainer, { childList: true, subtree: true });
+observer.observe(chatContainer, { childList: true, subtree: true, characterData: true });
