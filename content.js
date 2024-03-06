@@ -1,16 +1,16 @@
 const MAX_ELEMENTS = 90;
-const checkboxes = [];
+const checkboxes = new Map(); // Use a Map for efficient lookups
 const messages = [];
 
 function addCheckboxToMessage(message) {
-  const authorPhoto = message.querySelector("#author-photo");
+  const messageId = message.id;
 
-  if (authorPhoto && !message.hasAttribute("data-checkbox-added")) {
+  if (messageId && !checkboxes.has(messageId)) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     message.insertBefore(checkbox, message.firstChild);
 
-    checkboxes.push(checkbox);
+    checkboxes.set(messageId, checkbox);
     messages.push(message);
 
     checkbox.addEventListener("click", (event) => {
@@ -22,29 +22,29 @@ function addCheckboxToMessage(message) {
       handleCheckboxChange(checkbox);
     });
 
-    message.setAttribute("data-checkbox-added", "true");
-
-    if (checkboxes.length > MAX_ELEMENTS) {
+    if (checkboxes.size > MAX_ELEMENTS) {
       removeOldestMessage();
     }
   }
 }
 
 function handleCheckboxChange(clickedCheckbox) {
-  const clickedIndex = checkboxes.indexOf(clickedCheckbox);
+  const clickedIndex = messages.findIndex((msg) => msg.id === clickedCheckbox.parentElement.id);
 
-  for (let i = 0; i < checkboxes.length; i++) {
-    checkboxes[i].checked = i <= clickedIndex;
+  for (let i = 0; i < messages.length; i++) {
+    const messageId = messages[i].id;
+    checkboxes.get(messageId).checked = i <= clickedIndex;
     grayOutChatMessage(messages[i], i > clickedIndex);
   }
 }
 
 function removeOldestMessage() {
-  const oldestCheckbox = checkboxes.shift();
   const oldestMessage = messages.shift();
 
-  if (oldestCheckbox && oldestMessage) {
+  if (oldestMessage) {
+    const oldestCheckbox = checkboxes.get(oldestMessage.id);
     oldestCheckbox.remove();
+    checkboxes.delete(oldestMessage.id);
     oldestMessage.remove();
   }
 }
@@ -53,8 +53,8 @@ function grayOutChatMessage(message, gray) {
   const chatTextElement = message.querySelector("#message");
 
   if (chatTextElement) {
-    chatTextElement.style.color = gray ? "" : "grey";  // Invert the logic here
-    chatTextElement.style.textDecoration = gray ? "" : "line-through";  // Invert the logic here
+    chatTextElement.style.color = gray ? "" : "grey";
+    chatTextElement.style.textDecoration = gray ? "" : "line-through";
   }
 }
 
@@ -75,15 +75,19 @@ const observer = new MutationObserver((mutationsList) => {
 
       mutation.removedNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
-          const removedIndex = messages.indexOf(node);
+          const removedIndex = messages.findIndex((msg) => msg.id === node.id);
           if (removedIndex !== -1) {
-            checkboxes.splice(removedIndex, 1);
-            messages.splice(removedIndex, 1);
+            const removedMessage = messages.splice(removedIndex, 1)[0];
+            const removedCheckbox = checkboxes.get(removedMessage.id);
+            checkboxes.delete(removedMessage.id);
+            removedCheckbox.remove();
           }
         }
       });
+    } else if (mutation.type === "characterData") {
+      // Handle changes to the content of the messages (e.g., deleted messages)
     }
   }
 });
 
-observer.observe(chatContainer, { childList: true });
+observer.observe(chatContainer, { childList: true, subtree: true });
